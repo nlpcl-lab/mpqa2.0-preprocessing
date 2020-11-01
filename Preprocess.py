@@ -43,5 +43,5 @@ if __name__ == "__main__":
 
     print("Total number of documents to be used : ", len(used_dirs))
 
-    for dir in used_dirs:
+    for i, dir in enumerate(used_dirs):
         convert_Data(dir, datapath, parsedpath)
