@@ -22,11 +22,11 @@ class AnnSent():
     def process_data(self):
         clean_sent = replace_special_tokens(self.sent)
         attitudes = []
+        tokens = nltk.word_tokenize(clean_sent)
         for att in self.pre_atts:
             text, att_type, source, offset = att
             clean_text = replace_special_tokens(text)
 
-            tokens = nltk.word_tokenize(clean_sent)
             trigger_tokens = nltk.word_tokenize(clean_text)
 
             new_start = len(nltk.word_tokenize(replace_special_tokens(self.sent[:offset])))
@@ -42,7 +42,7 @@ class AnnSent():
                 # input('error')
             attitude_info = {"att_type": att_type, "source": source, "trigger": trigger}
             attitudes.append(attitude_info)
-        return {"sentence": clean_sent, "attitudes": attitudes}
+        return {"sentence": clean_sent, "attitudes": attitudes, "words": tokens}
 
 
 
