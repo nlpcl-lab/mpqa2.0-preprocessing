@@ -1,6 +1,9 @@
 import os
 import argparse
+from random import shuffle
 from convert_data import convert_Data
+
+import json
 
 datapath = os.getcwd() + "/mpqa2"
 parsedpath = os.getcwd() + "/ParsedData"
@@ -26,6 +29,7 @@ def get_subset_dirs(keyword):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--use_ulas", type=bool, default=False)
+    parser.add_argument("--train_percentage", type=float, default=0.8)
 
     args = parser.parse_args()
     if not args.use_ulas:
@@ -43,5 +47,30 @@ if __name__ == "__main__":
 
     print("Total number of documents to be used : ", len(used_dirs))
 
+    all_data = []
     for i, dir in enumerate(used_dirs):
-        convert_Data(dir, datapath, parsedpath)
+        sent_anns = convert_Data(dir, datapath, parsedpath)
+        if sent_anns == -1:
+            continue
+        all_data.extend(sent_anns)
+
+    shuffle(all_data)
+
+    train_amount = int(len(all_data)*(args.train_percentage))
+    test_amount = int((len(all_data) - train_amount)*0.5)
+
+    train_data = all_data[:train_amount]
+    test_data = all_data[train_amount:train_amount+test_amount]
+    dev_data = all_data[train_amount+test_amount:]
+
+    with open(parsedpath+"/train.json", 'w') as f:
+        json.dump(train_data, f, indent=2)
+
+    with open(parsedpath+"/test.json", 'w') as f:
+        json.dump(test_data, f, indent=2)
+
+    with open(parsedpath+"/dev.json", 'w') as f:
+        json.dump(dev_data, f, indent=2)
+
+    with open(parsedpath + "/all.json", 'w') as f:
+        json.dump(all_data, f, indent=2)

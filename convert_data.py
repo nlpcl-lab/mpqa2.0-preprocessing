@@ -15,28 +15,35 @@ class AnnSent():
         self.sent = sent
         self.pre_atts = []
 
-    def annotate_part(self, text, att_type, source):
-        self.pre_atts.append((text,att_type,source))
+    def annotate_part(self, text, att_type, source, offset):
+        self.pre_atts.append((text,att_type,source, offset))
 
 
     def process_data(self):
-        self.sent = replace_special_tokens(self.sent)
-        self.attitudes = []
+        clean_sent = replace_special_tokens(self.sent)
+        attitudes = []
         for att in self.pre_atts:
-            text, att_type, source = att
-            text = replace_special_tokens(text)
-            attitude_info = {"att_type": att_type, "source": source}
-            tokens = nltk.word_tokenize(self.sent)
-            tokens = nltk.word_tokenize(text)
-            if self.sent.count(text) == 1:
-                trigger = {"text": text}
-            elif self.sent.count(text) == 0:
-                assert False
-            else:
-                print("duplicates")
-                print(text)
-                print(self.sent)
-                print("_____")
+            text, att_type, source, offset = att
+            clean_text = replace_special_tokens(text)
+
+            tokens = nltk.word_tokenize(clean_sent)
+            trigger_tokens = nltk.word_tokenize(clean_text)
+
+            new_start = len(nltk.word_tokenize(replace_special_tokens(self.sent[:offset])))
+            trigger = {"text": clean_text, "start": new_start, "end": new_start+len(trigger_tokens)}
+            if not tokens[new_start:new_start+len(trigger_tokens)] == trigger_tokens:
+                # 4 cases skipped due to annotation errors
+                continue
+                # print(tokens[new_start:new_start+len(trigger_tokens)])
+                # print(trigger_tokens)
+                # print(text)
+                # print(self.sent)
+                # print(clean_sent)
+                # input('error')
+            attitude_info = {"att_type": att_type, "source": source, "trigger": trigger}
+            attitudes.append(attitude_info)
+        return {"sentence": clean_sent, "attitudes": attitudes}
+
 
 
 def find_the_sent(indexes_list, start_index):
@@ -52,6 +59,9 @@ def find_the_sent(indexes_list, start_index):
 
 
 def convert_Data(dir, datapath, targetpath):
+    # broken sentence annotations
+    if dir.strip() == 'xbank/wsj_0583':
+        return -1
     annpath = os.path.join(datapath, "man_anns")
     docpath = os.path.join(datapath, "docs")
     dir = dir.strip()
@@ -81,6 +91,7 @@ def convert_Data(dir, datapath, targetpath):
         start,end = sents[sent_start]
         sentence = doc[start:end]
         annsents.append(AnnSent(sentence))
+
 
     ds_atts = [] # tuples of attitude link and nested source
     att_dict = {}
@@ -129,18 +140,21 @@ def convert_Data(dir, datapath, targetpath):
         att_text = doc[start:end]
 
         sent_num = find_the_sent(sent_starts, start)
+        offset = start - sent_starts[sent_num]
         if att_text in annsents[sent_num].sent:
-            annsents[sent_num].annotate_part(att_text, att_type, source)
+            annsents[sent_num].annotate_part(att_text, att_type, source, offset)
         elif att_text in annsents[sent_num].sent+'"': #one error due to quotation mark being outside
             annsents[sent_num].sent= annsents[sent_num].sent + '"'
-            annsents[sent_num].annotate_part(att_text, att_type, source)
+            annsents[sent_num].annotate_part(att_text, att_type, source, offset)
         else:
             print("skipping due to sentence split error") #4 errors because missplit sentence
 
 
-
+    results = []
     for annsent in annsents:
-        annsent.process_data()
+        sentence = annsent.process_data()
+        results.append(sentence)
+    return results
 
 
 
